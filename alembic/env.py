@@ -12,7 +12,7 @@ from api.database.database import Base
 from api.settings import settings
 
 
-NAME = None
+NAME = "jobs"
 
 
 # this is the Alembic Config object, which provides
