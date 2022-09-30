@@ -13,6 +13,7 @@ class Job(BaseModel):
     remote: bool = Field(description="Whether the job is remote")
     type: JobType = Field(description="The job's type")
     contact: str | None = Field(description="The job's contact information")
+    skill_requirements: set[str] = Field(description="The job's skill requirements")
 
 
 class CreateJob(BaseModel):
@@ -23,6 +24,7 @@ class CreateJob(BaseModel):
     remote: bool = Field(description="Whether the job is remote")
     type: JobType = Field(description="The job's type")
     contact: str = Field(max_length=255, description="The job's contact information")
+    skill_requirements: set[str] = Field(description="The job's skill requirements")
 
 
 class UpdateJob(BaseModel):
@@ -33,3 +35,4 @@ class UpdateJob(BaseModel):
     remote: bool | None = Field(description="Whether the job is remote")
     type: JobType | None = Field(description="The job's type")
     contact: str | None = Field(max_length=255, description="The job's contact information")
+    skill_requirements: set[str] | None = Field(description="The job's skill requirements")

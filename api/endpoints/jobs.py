@@ -9,10 +9,10 @@ from api.auth import admin_auth, public_auth
 from api.database import db, select
 from api.exceptions.auth import admin_responses
 from api.exceptions.companies import CompanyNotFoundError
-from api.exceptions.jobs import JobNotFoundError
+from api.exceptions.jobs import JobNotFoundError, SkillNotFoundError
 from api.schemas.jobs import CreateJob, Job, UpdateJob
 from api.schemas.user import User
-from api.services.skills import get_completed_skills
+from api.services.skills import get_completed_skills, get_skills
 from api.utils.docs import responses
 
 
@@ -31,11 +31,18 @@ async def list_all_jobs(user: User | None = public_auth) -> Any:
     if user and user.email_verified and not user.admin:
         completed = await get_completed_skills(user.id)  # noqa
 
-    # todo
-    return [job.serialize(include_contact=user and user.admin) async for job in await db.stream(select(models.Job))]
+    return [
+        job.serialize(
+            include_contact=(user and user.admin)
+            or completed < {requirement.skill_id for requirement in job.skill_requirements}
+        )
+        async for job in await db.stream(select(models.Job))
+    ]
 
 
-@router.post("/jobs", dependencies=[admin_auth], responses=admin_responses(Job, CompanyNotFoundError))
+@router.post(
+    "/jobs", dependencies=[admin_auth], responses=admin_responses(Job, CompanyNotFoundError, SkillNotFoundError)
+)
 async def create_job(data: CreateJob) -> Any:
     """
     Create a new job.
@@ -47,15 +54,27 @@ async def create_job(data: CreateJob) -> Any:
     if not company:
         raise CompanyNotFoundError
 
+    if not data.skill_requirements < await get_skills():
+        raise SkillNotFoundError
+
     job = await models.Job.create(
-        data.company_id, data.title, data.description, data.location, data.remote, data.type, data.contact
+        data.company_id,
+        data.title,
+        data.description,
+        data.location,
+        data.remote,
+        data.type,
+        data.contact,
+        data.skill_requirements,
     )
     job.company = company
     return job.serialize(include_contact=True)
 
 
 @router.patch(
-    "/jobs/{job_id}", dependencies=[admin_auth], responses=admin_responses(Job, JobNotFoundError, CompanyNotFoundError)
+    "/jobs/{job_id}",
+    dependencies=[admin_auth],
+    responses=admin_responses(Job, JobNotFoundError, CompanyNotFoundError, SkillNotFoundError),
 )
 async def update_job(job_id: str, data: UpdateJob) -> Any:
     """
@@ -91,6 +110,14 @@ async def update_job(job_id: str, data: UpdateJob) -> Any:
 
     if data.contact is not None and data.contact != job.contact:
         job.contact = data.contact
+
+    requirement_ids = {requirement.skill_id for requirement in job.skill_requirements}
+    if data.skill_requirements is not None and data.skill_requirements != requirement_ids:
+        if not data.skill_requirements < await get_skills():
+            raise SkillNotFoundError
+        job.skill_requirements = [
+            models.SkillRequirement(job_id=job.id, skill_id=skill_id) for skill_id in data.skill_requirements
+        ]
 
     return job.serialize(include_contact=True)
 
