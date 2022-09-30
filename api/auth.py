@@ -43,7 +43,7 @@ class InternalAuth(JWTAuth):
 
 
 jwt_auth = Depends(JWTAuth(force_valid=False))
-internal_auth = Depends(InternalAuth(audience=["skills"]))
+internal_auth = Depends(InternalAuth(audience=["jobs"]))
 
 
 @Depends
