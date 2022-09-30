@@ -1,4 +1,5 @@
-"""Endpoints related to the job platform."""
+"""Endpoints related to jobs."""
+
 from typing import Any
 
 from fastapi import APIRouter
