@@ -1,12 +1,16 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 from sqlalchemy import Column, String
-from sqlalchemy.orm import Mapped
+from sqlalchemy.orm import Mapped, relationship
 
 from api.database import Base, db
+
+
+if TYPE_CHECKING:
+    from . import Job
 
 
 class Company(Base):
@@ -20,6 +24,7 @@ class Company(Base):
     twitter_handle: Mapped[str | None] = Column(String(255), nullable=True)
     instagram_handle: Mapped[str | None] = Column(String(255), nullable=True)
     logo_url: Mapped[str | None] = Column(String(255), nullable=True)
+    jobs: list[Job] = relationship("Job", back_populates="company", cascade="all, delete-orphan")
 
     @property
     def serialize(self) -> dict[str, Any]:
