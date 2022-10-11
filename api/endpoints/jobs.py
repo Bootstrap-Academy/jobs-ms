@@ -2,7 +2,8 @@
 
 from typing import Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
+from sqlalchemy import func, or_
 
 from api import models
 from api.auth import admin_auth, public_auth
@@ -10,6 +11,7 @@ from api.database import db, select
 from api.exceptions.auth import admin_responses
 from api.exceptions.companies import CompanyNotFoundError
 from api.exceptions.jobs import JobNotFoundError, SkillNotFoundError
+from api.models.jobs import JobType
 from api.schemas.jobs import CreateJob, Job, UpdateJob
 from api.schemas.user import User
 from api.services.skills import get_completed_skills, get_skills
@@ -20,23 +22,44 @@ router = APIRouter()
 
 
 @router.get("/jobs", responses=responses(list[Job]))
-async def list_all_jobs(user: User | None = public_auth) -> Any:
+async def list_all_jobs(
+    search_term: str | None = Query(None, description="A search term to filter jobs by"),
+    location: str | None = Query(None, description="The location to search for"),
+    remote: bool = Query(False, description="Whether to search for remote jobs"),
+    type: JobType | None = Query(None, description="The type of job to search for"),
+    user: User | None = public_auth,
+) -> Any:
     """
     Return a list of all jobs.
 
     Contact details are included iff the **VERIFIED** requirement is met and the user has completed the required skills.
     """
 
-    completed: set[str] = set()  # noqa
+    completed: set[str] = set()
     if user and user.email_verified and not user.admin:
-        completed = await get_completed_skills(user.id)  # noqa
+        completed = await get_completed_skills(user.id)
+
+    query = select(models.Job)
+    if search_term:
+        query = query.where(
+            or_(
+                func.lower(models.Job.title).contains(search_term.lower(), autoescape=True),
+                func.lower(models.Job.description).contains(search_term.lower(), autoescape=True),
+            )
+        )
+    if location:
+        query = query.where(func.lower(models.Job.location).contains(location.lower(), autoescape=True))
+    if remote:
+        query = query.filter_by(remote=True)
+    if type:
+        query = query.filter_by(type=type)
 
     return [
         job.serialize(
             include_contact=(user and user.admin)
             or completed < {requirement.skill_id for requirement in job.skill_requirements}
         )
-        async for job in await db.stream(select(models.Job))
+        async for job in await db.stream(query)
     ]
 
 
