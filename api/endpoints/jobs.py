@@ -1,5 +1,6 @@
 """Endpoints related to jobs."""
 
+from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, Query
@@ -81,14 +82,20 @@ async def create_job(data: CreateJob) -> Any:
         raise SkillNotFoundError
 
     job = await models.Job.create(
-        data.company_id,
-        data.title,
-        data.description,
-        data.location,
-        data.remote,
-        data.type,
-        data.contact,
-        data.skill_requirements,
+        company_id=data.company_id,
+        title=data.title,
+        description=data.description,
+        location=data.location,
+        remote=data.remote,
+        type=data.type,
+        responsibilities=data.responsibilities,
+        professional_level=data.professional_level,
+        salary_min=data.salary.min,
+        salary_max=data.salary.max,
+        salary_unit=data.salary.unit,
+        salary_per=data.salary.per,
+        contact=data.contact,
+        skill_requirements=data.skill_requirements,
     )
     job.company = company
     return job.serialize(include_contact=True)
@@ -131,6 +138,18 @@ async def update_job(job_id: str, data: UpdateJob) -> Any:
     if data.type is not None and data.type != job.type:
         job.type = data.type
 
+    if data.responsibilities is not None and data.responsibilities != job.responsibilities:
+        job.responsibilities = data.responsibilities
+
+    if data.professional_level is not None and data.professional_level != job.professional_level:
+        job.professional_level = data.professional_level
+
+    if data.salary is not None:
+        job.salary_min = data.salary.min
+        job.salary_max = data.salary.max
+        job.salary_unit = data.salary.unit
+        job.salary_per = data.salary.per
+
     if data.contact is not None and data.contact != job.contact:
         job.contact = data.contact
 
@@ -141,6 +160,8 @@ async def update_job(job_id: str, data: UpdateJob) -> Any:
         job.skill_requirements = [
             models.SkillRequirement(job_id=job.id, skill_id=skill_id) for skill_id in data.skill_requirements
         ]
+
+    job.last_update = datetime.now()
 
     return job.serialize(include_contact=True)
 
