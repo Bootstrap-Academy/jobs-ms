@@ -26,8 +26,9 @@ router = APIRouter()
 async def list_all_jobs(
     search_term: str | None = Query(None, description="A search term to filter jobs by"),
     location: str | None = Query(None, description="The location to search for"),
-    remote: bool = Query(False, description="Whether to search for remote jobs"),
+    remote: bool | None = Query(None, description="Whether to search for remote jobs"),
     type: JobType | None = Query(None, description="The type of job to search for"),
+    requirements_met: bool | None = Query(None, description="Whether to search for jobs with skill requirements met"),
     user: User | None = public_auth,
 ) -> Any:
     """
@@ -50,17 +51,16 @@ async def list_all_jobs(
         )
     if location:
         query = query.where(func.lower(models.Job.location).contains(location.lower(), autoescape=True))
-    if remote:
-        query = query.filter_by(remote=True)
+    if remote is not None:
+        query = query.filter_by(remote=remote)
     if type:
         query = query.filter_by(type=type)
 
     return [
-        job.serialize(
-            include_contact=(user and user.admin)
-            or completed < {requirement.skill_id for requirement in job.skill_requirements}
-        )
+        job.serialize(include_contact=(user and user.admin) or ok)
         async for job in await db.stream(query)
+        if (ok := completed < {requirement.skill_id for requirement in job.skill_requirements}) is requirements_met
+        or requirements_met is None
     ]
 
 
