@@ -64,6 +64,28 @@ async def list_all_jobs(
     ]
 
 
+@router.get("/jobs/{job_id}", responses=responses(Job, JobNotFoundError))
+async def get_job(job_id: str, user: User | None = public_auth) -> Any:
+    """
+    Return details about a specific job.
+
+    Contact details are included iff the **VERIFIED** requirement is met and the user has completed the required skills.
+    """
+
+    job = await db.get(models.Job, id=job_id)
+    if not job:
+        raise JobNotFoundError
+
+    completed: set[str] = set()
+    if user and user.email_verified and not user.admin:
+        completed = await get_completed_skills(user.id)
+
+    return job.serialize(
+        include_contact=(user and user.admin)
+        or completed < {requirement.skill_id for requirement in job.skill_requirements}
+    )
+
+
 @router.post(
     "/jobs", dependencies=[admin_auth], responses=admin_responses(Job, CompanyNotFoundError, SkillNotFoundError)
 )
