@@ -30,7 +30,20 @@ def upgrade() -> None:
             sa.Enum("FULL_TIME", "PART_TIME", "INTERNSHIP", "TEMPORARY", "MINI_JOB", name="jobtype"),
             nullable=True,
         ),
+        sa.Column("_responsibilities", sa.Text(), nullable=True),
+        sa.Column(
+            "professional_level",
+            sa.Enum("ENTRY", "JUNIOR", "SENIOR", "MANAGER", name="professionallevel"),
+            nullable=True,
+        ),
+        sa.Column("salary_min", sa.BigInteger(), nullable=True),
+        sa.Column("salary_max", sa.BigInteger(), nullable=True),
+        sa.Column("salary_unit", sa.Text(), nullable=True),
+        sa.Column(
+            "salary_per", sa.Enum("ONCE", "TASK", "HOUR", "DAY", "MONTH", "YEAR", name="salaryper"), nullable=True
+        ),
         sa.Column("contact", sa.Text(), nullable=True),
+        sa.Column("last_update", sa.DateTime(), nullable=True),
         sa.ForeignKeyConstraint(["company_id"], ["jobs_companies.id"]),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("id"),
