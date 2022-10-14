@@ -12,7 +12,7 @@ from api.database import db, select
 from api.exceptions.auth import admin_responses
 from api.exceptions.companies import CompanyNotFoundError
 from api.exceptions.jobs import JobNotFoundError, SkillNotFoundError
-from api.models.jobs import JobType
+from api.models.jobs import JobType, ProfessionalLevel, SalaryPer
 from api.schemas.jobs import CreateJob, Job, UpdateJob
 from api.schemas.user import User
 from api.services.skills import get_completed_skills, get_skills
@@ -27,7 +27,13 @@ async def list_all_jobs(
     search_term: str | None = Query(None, description="A search term to filter jobs by"),
     location: str | None = Query(None, description="The location to search for"),
     remote: bool | None = Query(None, description="Whether to search for remote jobs"),
-    type: JobType | None = Query(None, description="The type of job to search for"),
+    type: list[JobType] | None = Query(None, description="The type of job to search for"),
+    professional_level: list[ProfessionalLevel]
+    | None = Query(None, description="The professional level to search for"),
+    salary_min: int | None = Query(None, description="The minimum salary to search for"),
+    salary_max: int | None = Query(None, description="The maximum salary to search for"),
+    salary_unit: str | None = Query(None, description="The salary unit to search for"),
+    salary_per: SalaryPer | None = Query(None, description="The salary period to search for"),
     requirements_met: bool | None = Query(None, description="Whether to search for jobs with skill requirements met"),
     user: User | None = public_auth,
 ) -> Any:
@@ -47,14 +53,25 @@ async def list_all_jobs(
             or_(
                 func.lower(models.Job.title).contains(search_term.lower(), autoescape=True),
                 func.lower(models.Job.description).contains(search_term.lower(), autoescape=True),
+                func.lower(models.Job._responsibilities).contains(search_term.lower(), autoescape=True),
             )
         )
     if location:
         query = query.where(func.lower(models.Job.location).contains(location.lower(), autoescape=True))
     if remote is not None:
-        query = query.filter_by(remote=remote)
+        query = query.where(models.Job.remote == remote)
     if type:
-        query = query.filter_by(type=type)
+        query = query.where(models.Job.type.in_(type))
+    if professional_level:
+        query = query.where(models.Job.professional_level.in_(professional_level))
+    if salary_min:
+        query = query.where(models.Job.salary_min >= salary_min)
+    if salary_max:
+        query = query.where(models.Job.salary_max <= salary_max)
+    if salary_unit:
+        query = query.where(func.lower(models.Job.salary_unit).contains(salary_unit.lower(), autoescape=True))
+    if salary_per:
+        query = query.where(models.Job.salary_per == salary_per)
 
     return [
         job.serialize(include_contact=(user and user.admin) or ok)
