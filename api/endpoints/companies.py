@@ -10,12 +10,14 @@ from api.database import db, filter_by, select
 from api.exceptions.auth import admin_responses
 from api.exceptions.companies import CompanyAlreadyExistsError, CompanyNotFoundError
 from api.schemas.companies import Company, CreateCompany, UpdateCompany
+from api.utils.cache import clear_cache, redis_cached
 
 
 router = APIRouter()
 
 
 @router.get("/companies", dependencies=[admin_auth], responses=admin_responses(list[Company]))
+@redis_cached("companies")
 async def list_all_companies() -> Any:
     """
     List all companies.
@@ -46,6 +48,9 @@ async def create_company(data: CreateCompany) -> Any:
         data.instagram_handle,
         data.logo_url,
     )
+
+    await clear_cache("companies")
+
     return company.serialize
 
 
@@ -88,7 +93,8 @@ async def update_company(company_id: str, data: UpdateCompany) -> Any:
     if data.logo_url is not None and data.logo_url != company.logo_url:
         company.logo_url = data.logo_url
 
-    await db.add(company)
+    await clear_cache("companies")
+
     return company.serialize
 
 
@@ -107,4 +113,7 @@ async def delete_company(company_id: str) -> Any:
         raise CompanyNotFoundError
 
     await db.delete(company)
+
+    await clear_cache("companies")
+
     return True

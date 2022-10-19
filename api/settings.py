@@ -1,5 +1,4 @@
 import secrets
-from pathlib import Path
 from typing import Literal
 
 from pydantic import BaseSettings, Field
@@ -14,6 +13,8 @@ class Settings(BaseSettings):
 
     debug: bool = False
     reload: bool = False
+
+    cache_ttl: int = 300
 
     jwt_secret: str = secrets.token_urlsafe(64)
 
