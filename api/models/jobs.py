@@ -6,9 +6,11 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, cast
 from uuid import uuid4
 
-from sqlalchemy import BigInteger, Boolean, Column, DateTime, Enum, ForeignKey, String, Text
+from sqlalchemy import BigInteger, Boolean, Column, Enum, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, relationship
 
+from ..database.database import UTCDateTime
+from ..utils.utc import utcnow
 from api.database import Base, db
 from api.models.companies import Company
 
@@ -59,7 +61,7 @@ class Job(Base):
     salary_unit: Mapped[str] = Column(Text)
     salary_per: Mapped[SalaryPer] = Column(Enum(SalaryPer))
     contact: Mapped[str] = Column(Text)
-    last_update: Mapped[datetime] = Column(DateTime)
+    last_update: Mapped[datetime] = Column(UTCDateTime)
     skill_requirements: list[SkillRequirement] = relationship(
         "SkillRequirement", back_populates="job", cascade="all, delete-orphan", lazy="selectin"
     )
@@ -131,7 +133,7 @@ class Job(Base):
             salary_per=salary_per,
             contact=contact,
             skill_requirements=[SkillRequirement(job_id=job_id, skill_id=skill_id) for skill_id in skill_requirements],
-            last_update=datetime.now(),
+            last_update=utcnow(),
         )
         job.responsibilities = responsibilities
         await db.add(job)

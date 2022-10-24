@@ -1,6 +1,5 @@
 """Endpoints related to jobs."""
 
-from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, Query
@@ -17,6 +16,7 @@ from api.schemas.jobs import CreateJob, Job, UpdateJob
 from api.schemas.user import User
 from api.services.skills import get_completed_skills, get_skills
 from api.utils.docs import responses
+from api.utils.utc import utcnow
 
 
 router = APIRouter()
@@ -200,7 +200,7 @@ async def update_job(job_id: str, data: UpdateJob) -> Any:
             models.SkillRequirement(job_id=job.id, skill_id=skill_id) for skill_id in data.skill_requirements
         ]
 
-    job.last_update = datetime.now()
+    job.last_update = utcnow()
 
     return job.serialize(include_contact=True)
 
