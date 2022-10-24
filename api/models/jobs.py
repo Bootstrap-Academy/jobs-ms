@@ -10,6 +10,7 @@ from sqlalchemy import BigInteger, Boolean, Column, Enum, ForeignKey, String, Te
 from sqlalchemy.orm import Mapped, relationship
 
 from ..database.database import UTCDateTime
+from ..services.skills import get_skills
 from ..utils.utc import utcnow
 from api.database import Base, db
 from api.models.companies import Company
@@ -74,7 +75,8 @@ class Job(Base):
     def responsibilities(self, value: list[str]) -> None:
         self._responsibilities = json.dumps(value)
 
-    def serialize(self, *, include_contact: bool) -> dict[str, Any]:
+    async def serialize(self, *, include_contact: bool) -> dict[str, Any]:
+        skills = await get_skills()
         return {
             "id": self.id,
             "company": self.company.serialize,
@@ -93,7 +95,9 @@ class Job(Base):
             },
             "contact": self.contact if include_contact else None,
             "last_update": self.last_update.timestamp(),
-            "skill_requirements": {req.skill_id for req in self.skill_requirements},
+            "skill_requirements": {
+                (skill.parent_id, skill.id) for req in self.skill_requirements if (skill := skills.get(req.skill_id))
+            },
         }
 
     @classmethod

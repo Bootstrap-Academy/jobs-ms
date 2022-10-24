@@ -33,7 +33,7 @@ class Job(BaseModel):
     salary: JobSalary = Field(description="The job's salary")
     contact: str | None = Field(description="The job's contact information")
     last_update: int = Field(description="The job's last update timestamp")
-    skill_requirements: set[str] = Field(description="The job's skill requirements")
+    skill_requirements: set[tuple[str, str]] = Field(description="The job's skill requirements")
 
 
 class CreateJob(BaseModel):

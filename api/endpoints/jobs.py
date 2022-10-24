@@ -74,7 +74,7 @@ async def list_all_jobs(
         query = query.where(models.Job.salary_per == salary_per)
 
     return [
-        job.serialize(include_contact=(user and user.admin) or ok)
+        await job.serialize(include_contact=(user and user.admin) or ok)
         async for job in await db.stream(query)
         if (ok := completed < {requirement.skill_id for requirement in job.skill_requirements}) is requirements_met
         or requirements_met is None
@@ -97,7 +97,7 @@ async def get_job(job_id: str, user: User | None = public_auth) -> Any:
     if user and user.email_verified and not user.admin:
         completed = await get_completed_skills(user.id)
 
-    return job.serialize(
+    return await job.serialize(
         include_contact=(user and user.admin)
         or completed < {requirement.skill_id for requirement in job.skill_requirements}
     )
@@ -117,7 +117,7 @@ async def create_job(data: CreateJob) -> Any:
     if not company:
         raise CompanyNotFoundError
 
-    if not data.skill_requirements < await get_skills():
+    if not data.skill_requirements < set(await get_skills()):
         raise SkillNotFoundError
 
     job = await models.Job.create(
@@ -137,7 +137,7 @@ async def create_job(data: CreateJob) -> Any:
         skill_requirements=data.skill_requirements,
     )
     job.company = company
-    return job.serialize(include_contact=True)
+    return await job.serialize(include_contact=True)
 
 
 @router.patch(
@@ -194,7 +194,7 @@ async def update_job(job_id: str, data: UpdateJob) -> Any:
 
     requirement_ids = {requirement.skill_id for requirement in job.skill_requirements}
     if data.skill_requirements is not None and data.skill_requirements != requirement_ids:
-        if not data.skill_requirements < await get_skills():
+        if not data.skill_requirements < set(await get_skills()):
             raise SkillNotFoundError
         job.skill_requirements = [
             models.SkillRequirement(job_id=job.id, skill_id=skill_id) for skill_id in data.skill_requirements
@@ -202,7 +202,7 @@ async def update_job(job_id: str, data: UpdateJob) -> Any:
 
     job.last_update = utcnow()
 
-    return job.serialize(include_contact=True)
+    return await job.serialize(include_contact=True)
 
 
 @router.delete("/jobs/{job_id}", dependencies=[admin_auth], responses=admin_responses(bool, JobNotFoundError))
