@@ -76,7 +76,8 @@ async def list_all_jobs(
     return [
         await job.serialize(include_contact=(user and user.admin) or ok)
         async for job in await db.stream(query)
-        if (ok := completed < {requirement.skill_id for requirement in job.skill_requirements}) is requirements_met
+        if (ok := completed.issuperset({requirement.skill_id for requirement in job.skill_requirements}))
+        is requirements_met
         or requirements_met is None
     ]
 
@@ -99,7 +100,7 @@ async def get_job(job_id: str, user: User | None = public_auth) -> Any:
 
     return await job.serialize(
         include_contact=(user and user.admin)
-        or completed < {requirement.skill_id for requirement in job.skill_requirements}
+        or completed.issuperset({requirement.skill_id for requirement in job.skill_requirements})
     )
 
 
