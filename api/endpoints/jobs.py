@@ -65,9 +65,9 @@ async def list_all_jobs(
     if professional_level:
         query = query.where(models.Job.professional_level.in_(professional_level))
     if salary_min:
-        query = query.where(models.Job.salary_min >= salary_min)
+        query = query.where(models.Job.salary_max >= salary_min)
     if salary_max:
-        query = query.where(models.Job.salary_max <= salary_max)
+        query = query.where(models.Job.salary_min <= salary_max)
     if salary_unit:
         query = query.where(func.lower(models.Job.salary_unit).contains(salary_unit.lower(), autoescape=True))
     if salary_per:
