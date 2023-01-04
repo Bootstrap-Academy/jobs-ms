@@ -33,7 +33,9 @@ class Job(BaseModel):
     salary: JobSalary = Field(description="The job's salary")
     contact: str | None = Field(description="The job's contact information")
     last_update: int = Field(description="The job's last update timestamp")
-    skill_requirements: set[tuple[str, str]] = Field(description="The job's skill requirements")
+    skill_requirements: set[tuple[str, str, int]] = Field(
+        description="The job's skill requirements. Each requirement is a tuple of (parent_skill_id, skill_id, level)"
+    )
 
 
 class CreateJob(BaseModel):
@@ -47,7 +49,7 @@ class CreateJob(BaseModel):
     professional_level: ProfessionalLevel = Field(description="The job's professional level")
     salary: JobSalary = Field(description="The job's salary")
     contact: str = Field(max_length=255, description="The job's contact information")
-    skill_requirements: set[str] = Field(description="The job's skill requirements")
+    skill_requirements: dict[str, int] = Field(description="The job's skill requirements (skill_id -> level)")
 
 
 class UpdateJob(BaseModel):
@@ -61,4 +63,4 @@ class UpdateJob(BaseModel):
     professional_level: ProfessionalLevel | None = Field(description="The job's professional level")
     salary: JobSalary | None = Field(description="The job's salary")
     contact: str | None = Field(max_length=255, description="The job's contact information")
-    skill_requirements: set[str] | None = Field(description="The job's skill requirements")
+    skill_requirements: dict[str, int] | None = Field(description="The job's skill requirements (skill_id -> level)")

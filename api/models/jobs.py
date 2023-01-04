@@ -96,7 +96,9 @@ class Job(Base):
             "contact": self.contact if include_contact else None,
             "last_update": self.last_update.timestamp(),
             "skill_requirements": {
-                (skill.parent_id, skill.id) for req in self.skill_requirements if (skill := skills.get(req.skill_id))
+                (skill.parent_id, skill.id, req.level)
+                for req in self.skill_requirements
+                if (skill := skills.get(req.skill_id))
             },
         }
 
@@ -117,7 +119,7 @@ class Job(Base):
         salary_unit: str,
         salary_per: SalaryPer,
         contact: str,
-        skill_requirements: set[str],
+        skill_requirements: dict[str, int],
     ) -> Job:
         from . import SkillRequirement
 
@@ -136,7 +138,10 @@ class Job(Base):
             salary_unit=salary_unit,
             salary_per=salary_per,
             contact=contact,
-            skill_requirements=[SkillRequirement(job_id=job_id, skill_id=skill_id) for skill_id in skill_requirements],
+            skill_requirements=[
+                SkillRequirement(job_id=job_id, skill_id=skill_id, level=level)
+                for skill_id, level in skill_requirements.items()
+            ],
             last_update=utcnow(),
         )
         job.responsibilities = responsibilities

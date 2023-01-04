@@ -14,7 +14,7 @@ from api.exceptions.jobs import JobNotFoundError, SkillNotFoundError
 from api.models.jobs import JobType, ProfessionalLevel, SalaryPer
 from api.schemas.jobs import CreateJob, Job, UpdateJob
 from api.schemas.user import User
-from api.services.skills import get_completed_skills, get_skills
+from api.services.skills import get_skill_levels, get_skills
 from api.utils.docs import responses
 from api.utils.utc import utcnow
 
@@ -43,9 +43,7 @@ async def list_all_jobs(
     Contact details are included iff the **VERIFIED** requirement is met and the user has completed the required skills.
     """
 
-    completed: set[str] = set()
-    if user and user.email_verified and not user.admin:
-        completed = await get_completed_skills(user.id)
+    levels = await get_skill_levels(user.id) if user else {}
 
     query = select(models.Job)
     if search_term:
@@ -76,7 +74,11 @@ async def list_all_jobs(
     return [
         await job.serialize(include_contact=(user and user.admin) or ok)
         async for job in await db.stream(query)
-        if (ok := completed.issuperset({requirement.skill_id for requirement in job.skill_requirements}))
+        if (
+            ok := all(
+                levels.get(requirement.skill_id, 0) >= requirement.level for requirement in job.skill_requirements
+            )
+        )
         is requirements_met
         or requirements_met is None
     ]
@@ -94,13 +96,11 @@ async def get_job(job_id: str, user: User | None = public_auth) -> Any:
     if not job:
         raise JobNotFoundError
 
-    completed: set[str] = set()
-    if user and user.email_verified and not user.admin:
-        completed = await get_completed_skills(user.id)
+    levels = await get_skill_levels(user.id) if user else {}
 
     return await job.serialize(
         include_contact=(user and user.admin)
-        or completed.issuperset({requirement.skill_id for requirement in job.skill_requirements})
+        or all(levels.get(requirement.skill_id, 0) >= requirement.level for requirement in job.skill_requirements)
     )
 
 
@@ -118,7 +118,7 @@ async def create_job(data: CreateJob) -> Any:
     if not company:
         raise CompanyNotFoundError
 
-    if not data.skill_requirements < set(await get_skills()):
+    if not set(data.skill_requirements).issubset(set(await get_skills())):
         raise SkillNotFoundError
 
     job = await models.Job.create(
@@ -193,12 +193,13 @@ async def update_job(job_id: str, data: UpdateJob) -> Any:
     if data.contact is not None and data.contact != job.contact:
         job.contact = data.contact
 
-    requirement_ids = {requirement.skill_id for requirement in job.skill_requirements}
-    if data.skill_requirements is not None and data.skill_requirements != requirement_ids:
-        if not data.skill_requirements < set(await get_skills()):
+    requirements = {requirement.skill_id: requirement.level for requirement in job.skill_requirements}
+    if data.skill_requirements is not None and data.skill_requirements != requirements:
+        if not set(data.skill_requirements).issubset(set(await get_skills())):
             raise SkillNotFoundError
         job.skill_requirements = [
-            models.SkillRequirement(job_id=job.id, skill_id=skill_id) for skill_id in data.skill_requirements
+            models.SkillRequirement(job_id=job.id, skill_id=skill_id, level=level)
+            for skill_id, level in data.skill_requirements.items()
         ]
 
     job.last_update = utcnow()
