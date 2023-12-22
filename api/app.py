@@ -11,13 +11,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from . import __version__
 from .database import db, db_context
 from .endpoints import ROUTER, TAGS
 from .logger import get_logger, setup_sentry
 from .settings import settings
 from .utils.debug import check_responses
 from .utils.docs import add_endpoint_links_to_openapi_docs
-from .version import get_version
 
 
 T = TypeVar("T")
@@ -27,7 +27,7 @@ logger = get_logger(__name__)
 app = FastAPI(
     title="Bootstrap Academy Backend: Jobs Microservice",
     description=__doc__,
-    version=get_version().description,
+    version=__version__,
     root_path=settings.root_path,
     root_path_in_servers=False,
     servers=[{"url": settings.root_path}] if settings.root_path else None,
@@ -44,7 +44,7 @@ def setup_app() -> None:
 
     if settings.sentry_dsn:
         logger.debug("initializing sentry")
-        setup_sentry(app, settings.sentry_dsn, "jobs-ms", get_version().description)
+        setup_sentry(app, settings.sentry_dsn, "jobs-ms", __version__)
 
     if settings.debug:
         app.add_middleware(
