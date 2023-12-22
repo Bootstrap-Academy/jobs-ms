@@ -39,4 +39,4 @@ class Settings(BaseSettings):
     sentry_environment: str = "test"
 
 
-settings = Settings()
+settings = Settings()  # type: ignore
