@@ -28,8 +28,9 @@ async def list_all_jobs(
     location: str | None = Query(None, description="The location to search for"),
     remote: bool | None = Query(None, description="Whether to search for remote jobs"),
     type: list[JobType] | None = Query(None, description="The type of job to search for"),
-    professional_level: list[ProfessionalLevel]
-    | None = Query(None, description="The professional level to search for"),
+    professional_level: list[ProfessionalLevel] | None = Query(
+        None, description="The professional level to search for"
+    ),
     salary_min: int | None = Query(None, description="The minimum salary to search for"),
     salary_max: int | None = Query(None, description="The maximum salary to search for"),
     salary_unit: str | None = Query(None, description="The salary unit to search for"),
