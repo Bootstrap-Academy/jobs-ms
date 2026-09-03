@@ -22,6 +22,16 @@ from api.utils.utc import utcnow
 router = APIRouter()
 
 
+def _include_contact(user: User | None, requirements_met: bool) -> bool:
+    """Return whether the contact details of a job may be disclosed to the requesting user."""
+
+    if user is None:
+        return False
+    if user.admin:
+        return True
+    return user.email_verified and requirements_met
+
+
 @router.get("/jobs", responses=responses(list[Job]))
 async def list_all_jobs(
     search_term: str | None = Query(None, description="A search term to filter jobs by"),
@@ -41,7 +51,8 @@ async def list_all_jobs(
     """
     Return a list of all jobs.
 
-    Contact details are included iff the **VERIFIED** requirement is met and the user has completed the required skills.
+    Contact details are included iff the **VERIFIED** requirement is met and the user has completed the required
+    skills. Requests without authentication never include them, requests by administrators always do.
     """
 
     levels = await get_skill_levels(user.id) if user else {}
@@ -73,7 +84,7 @@ async def list_all_jobs(
         query = query.where(models.Job.salary_per == salary_per)
 
     return [
-        await job.serialize(include_contact=(user and user.admin) or ok)
+        await job.serialize(include_contact=_include_contact(user, ok))
         async for job in await db.stream(query)
         if (
             ok := all(
@@ -90,7 +101,8 @@ async def get_job(job_id: str, user: User | None = public_auth) -> Any:
     """
     Return details about a specific job.
 
-    Contact details are included iff the **VERIFIED** requirement is met and the user has completed the required skills.
+    Contact details are included iff the **VERIFIED** requirement is met and the user has completed the required
+    skills. Requests without authentication never include them, requests by administrators always do.
     """
 
     job = await db.get(models.Job, id=job_id)
@@ -99,10 +111,11 @@ async def get_job(job_id: str, user: User | None = public_auth) -> Any:
 
     levels = await get_skill_levels(user.id) if user else {}
 
-    return await job.serialize(
-        include_contact=(user and user.admin)
-        or all(levels.get(requirement.skill_id, 0) >= requirement.level for requirement in job.skill_requirements)
+    requirements_met = all(
+        levels.get(requirement.skill_id, 0) >= requirement.level for requirement in job.skill_requirements
     )
+
+    return await job.serialize(include_contact=_include_contact(user, requirements_met))
 
 
 @router.post(
